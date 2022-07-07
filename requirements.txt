@@ -1,0 +1,15 @@
+numpy
+xarray
+pandas
+pandas-datareader
+beautifulsoup4
+lxml
+openpyxl
+xlrd
+imageio
+seaborn
+plotly
+dash
+gunicorn
+flask
+scipy

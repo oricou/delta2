@@ -1,3 +1,7 @@
+# local files which should not be pushed
+apps.tgz
+poetry.lock
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

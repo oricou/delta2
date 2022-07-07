@@ -1,0 +1,45 @@
+import pandas as pd
+import os
+
+# la connexion saute régulièrement aussi seul wget s'en sort
+# en relançant le téléchargement pour prendre seulement la fin
+if not os.path.exists("/tmp/WDIData.csv"):
+    !cd /tmp; wget https://databank.worldbank.org/data/download/WDI_csv.zip; unzip WDI_csv.zip
+
+df = pd.read_csv("/tmp/WDIData.csv")
+countries = pd.read_csv('data/iso-3166.csv', index_col="alpha-3") # je ne trouve pas d'URL correcte pour ce fichier !
+
+unamed = df.columns[-1]
+
+incomes = df[df['Indicator Name'] == 'Adjusted net national income per capita (current US$)']
+population = df[df['Indicator Name'] == "Population, total"]
+fertility = df[df['Indicator Name'] == 'Fertility rate, total (births per woman)']
+
+incomes = pd.merge(incomes, countries['region'], left_on="Country Code", right_index=True)
+incomes = incomes.set_index(["Country Name", "Country Code", "region"])
+incomes = incomes.drop(columns=["Indicator Name", "Indicator Code", unamed])
+incomes = incomes.T
+population = pd.merge(population, countries['region'], left_on="Country Code", right_index=True)
+population = population.set_index(["Country Name", "Country Code", "region"])
+population = population.drop(columns=["Indicator Name", "Indicator Code", unamed])
+population = population.T
+fertility = pd.merge(fertility, countries['region'], left_on="Country Code", right_index=True)
+fertility = fertility.set_index(["Country Name", "Country Code", "region"])
+fertility = fertility.drop(columns=["Indicator Name", "Indicator Code", unamed])
+fertility = fertility.T
+
+df = pd.concat({'fertility': fertility, 'population':population, 'incomes': incomes})
+df = df.unstack(level=0).stack(level=[0,1,2]).reset_index(["Country Name", "Country Code", "region"])
+df = df.dropna()
+df.index = pd.Index([int(y) for y in df.index.values], dtype=int)
+
+# on passe en francais
+df['Année'] = df.index
+df = df.rename(columns={'region':'Continent', 'Country Name':'Nom', 'fertility':"Nb d'enfants par femme",  \
+                        'incomes':'Revenus', 'population':'Population'})
+continents = {'Asia':'Asie', 'Europe':'Europe', 'Africa':'Afrique', 'Oceania':'Océanie', 'Americas':'Amériques'}
+for k in continents:
+    df.loc[df['Continent'] == k, 'Continent'] = continents[k]
+
+df.to_pickle("subWDIdata.pkl")
+

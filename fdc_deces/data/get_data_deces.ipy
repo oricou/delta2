@@ -1,0 +1,128 @@
+#!/usr/bin/env ipython
+
+import pandas as pd
+import datetime
+import dateutil as du
+import requests
+import json
+import sys
+import pathlib
+import re
+import glob
+
+def parse_date_with_00(s):
+    try:
+        res = du.parser.parse(s)
+    except:
+        s = s[:4] + max(s[4:6], "01") + max(s[6:8], "01") + " 06"  # 6 h pour indiquer que la date est fausse
+        res = du.parser.parse(s)
+    return res
+
+def death_dataframe(data):
+    res = []
+    for li in data.split('\n'):
+        try:
+            nom_prenom = li[:80].split('/')[0]
+            nom = nom_prenom.split('*')[0]
+            prenoms = nom_prenom.split('*')[1].split(' ')
+            sexe = li[80] == "1"    # True si homme, False si femme (1 et 0 en informatique)
+            naissance = parse_date_with_00(li[81:89])
+            code_postal_naissance = li[89:94]
+            commune_naissance = li[94:124].strip()
+            pays_naissance = li[124:154].strip()
+            deces = parse_date_with_00(li[154:162])
+            code_postal_deces = li[162:167]
+            acte_deces = li[167:176].strip()
+            res.append([ nom,prenoms[0],sexe, naissance, code_postal_naissance, commune_naissance, pays_naissance,
+                         deces, code_postal_deces, acte_deces ])
+        except Exception as e:
+            print(e, '\n  ', li)
+    return pd.DataFrame(res, columns=['nom', 'prenom', 'sexe', 'naissance', 'cp_naissance', 'ville_naissance',
+                                      'pays_naissance', 'deces', 'cp_deces', 'acte'])
+
+def get_file(url, filename):
+    try:  
+        data = requests.get(url)
+        res = death_dataframe(data.content.decode('UTF-8'))
+    except:  # parfois il y a un problème de formatage
+        !wget -O /tmp/{filename} {url}
+        with open(f"/tmp/{filename}", encoding='ISO-8859-1') as f:
+            res = death_dataframe(f.read())
+        !rm -f /tmp/{filename}
+    return res
+
+#-------------------------------------------------------------------------
+# main
+#-------------------------------------------------------------------------
+
+# we use data.gouv.fr API
+url = "https://www.data.gouv.fr/api/1/datasets/fichier-des-personnes-decedees/"
+deces_ressource = requests.get(url).content    # json
+deces_ressource = json.loads(deces_ressource)  # dict
+#
+# get list of url to download
+#
+filenames = {d['title']:d['url'] for d in deces_ressource['resources']}
+#
+# get years data and save each decade of data
+#
+current_year = datetime.datetime.now().year
+for decade in range(1970, current_year, 10):
+    backup = f"deces-{decade}-{min(current_year-1,decade+9)}.pkl"
+    if pathlib.Path(backup).is_file() or pathlib.Path(backup+'.bz2').is_file():
+        continue
+    res = []
+    for year in range(decade, min(decade+10, current_year)):
+        filename = f"deces-{year}.txt"
+        print(filename)
+        res.append(get_file(filenames[filename], filename))
+    df = pd.concat(res)
+    print(f"sauvegarde {backup}")
+    df.to_pickle(backup)
+    !bzip2 {backup}
+#
+# get months data of current year and update current decade of data
+#
+backup = f"deces-{(current_year // 10)*10}-{current_year}.pkl"
+if not(pathlib.Path(backup).is_file() or pathlib.Path(backup+'.bz2').is_file()):
+    res = []
+    decade = (current_year // 10)*10
+    decade_name = glob.glob(f'deces-{decade}-{current_year-1}*')
+    if len(decade_name) > 0:
+        res.append(pd.read_pickle(decade_name[0]))
+    for month in range(1,13):  # les mois de l'année courante
+        filename = f"deces-{current_year}-m{month:02}.txt"
+        print(filename)
+        try:
+            res.append(get_file(filenames[filename], filename))
+        except:
+            print('  pas disponible')
+    df = pd.concat(res)
+    df = df.drop_duplicates()
+    print(f"sauvegarde {backup}")
+    df.to_pickle(backup)
+    !bzip2 {backup}
+    if len(decade_name) > 0:
+        !rm -f decade_name[0]
+#
+# Extract from decade files a small dataframe with number of deads each day
+#
+for decade in range(1970, current_year+1, 10):
+    backup = f"deces-{decade}-{min(current_year,decade+9)}.pkl"
+    short = f"morts_par_jour-{decade}-{min(current_year,decade+9)}.pkl"
+    if pathlib.Path(short).is_file() or pathlib.Path(short+'.bz2').is_file():
+        continue
+    try:
+        df = pd.read_pickle(backup)[['sexe', 'deces']]
+    except:
+        df = pd.read_pickle(backup+'.bz2')[['sexe', 'deces']]
+    df['hour'] = df.deces.apply(lambda x: x.hour)
+    df = df[df.hour != 6]  # on retire les dates de décès imprécises
+    df.drop(columns = ['hour'], inplace = True)
+    df.rename(columns={'sexe':'morts'}, inplace=True)
+    df = df.set_index('deces')
+    df.sort_index(inplace=True)
+    df = df.groupby(pd.Grouper(freq='D')).count()
+    print(f"sauvegarde {short}")
+    df.to_pickle(short)
+

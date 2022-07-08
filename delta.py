@@ -22,7 +22,7 @@ main_layout = html.Div([
                               html.Center(html.H2("Δelta δata")),
                               dcc.Link(html.Button("Prix d'énergies", style={'width':"100%"}), href='/energies'),
                               html.Br(),
-                              dcc.Link(html.Button('Natalité vs revenus', style={'width':"100%"}), href='/population'),
+                              dcc.Link(html.Button('Fertilité vs revenus', style={'width':"100%"}), href='/population'),
                               html.Br(),
                               dcc.Link(html.Button('Décès journaliers', style={'width':"100%"}), href='/deces'),
                               html.Br(),

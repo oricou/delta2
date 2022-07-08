@@ -28,7 +28,7 @@ class WorldPopulationStats():
                                         hover_data = {'Année':True, 'Revenus':":.2f", "Nb d'enfants par femme":":.1f", \
                                                       'Continent':False, 'Population':':.2f'},
                                         color_discrete_map=self.continent_colors,
-                                        # title="Évolution du taux de natalité vs le revenu moyen par pays",
+                                        # title="Évolution du taux de fertilité vs le revenu moyen par pays",
                                         labels={'Revenus':"Revenus nets par personne",
                                                 "Population":"Population (millions)"},
                                         size = 'Population',  size_max=60,
@@ -39,7 +39,7 @@ class WorldPopulationStats():
                                        )
 
         self.main_layout = html.Div(children=[
-            html.H3(children='Évolution du taux de natalité vs le niveau moyen de revenu par pays'),
+            html.H3(children='Évolution du taux de fertilité vs le niveau moyen de revenu par pays'),
 
             html.Div('Déplacez la souris sur une bulle pour avoir les graphiques du pays en bas.'), 
 
@@ -65,9 +65,10 @@ class WorldPopulationStats():
             html.Br(),
             dcc.Markdown("""
 
-            La remarque la plus importante est que la majorité des pays ont vu leur taux de natalité violemment chuter pour
-            être autour de 2 enfants par femme en 2020. Cette évolution accompagne une augmentation des revenus (en $ US de 2020).
-            Seule l'Afrique a encore des taux supérieurs mais qui ont aussi
+            La remarque la plus importante est que la majorité des pays ont vu leur taux de fertilité violemment chuter pour
+            être autour de 2 enfants par femme en 2020. La relation entre les revenus et le taux de fertilité exsite toujours
+            mais qu'aujourd'hui, la majorité des femmes n'ont que 2 enfants quelque soit leur revenus.
+            Seule l'Afrique a encore des taux supérieurs taux qui ont aussi
             baissé avec le temps. Sachant qu'il faut 2,1 enfants par femme pour garder une population stable, on peut en
             conclure que le nombre d'humains sur terre devrait se stabiliser dans un avenir relativement proche
             (cf [cet article](https://www.futura-sciences.com/planete/actualites/population-mondiale-jusquou-va-grimper-population-mondiale-39860/) pour des projections chiffrées).

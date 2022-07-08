@@ -1,17 +1,19 @@
 import dash
 from dash import dcc
 from dash import html
-from nrj_energies import energies as nrj
-from wfr_fertilite_revenus import main as wfr
-from fdc_deces import deces as fdc
+
+# import projects as <trigramme>_lib
+from nrj_energies import energies as nrj_lib
+from wfr_fertilite_revenus import main as wfr_lib
+from fdc_deces import deces as fdc_lib
 
 # external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(__name__,  title="Delta", suppress_callback_exceptions=True) # , external_stylesheets=external_stylesheets)
 server = app.server
-pop = wfr.WorldPopulationStats(app)
-nrg = nrj.Energies(app)
-dec = fdc.Deces(app)
+wfr = wfr_lib.WorldPopulationStats(app)
+nrj = nrj_lib.Energies(app)
+fdc = fdc_lib.Deces(app)
 
 main_layout = html.Div([
     html.Div(className = "row",
@@ -20,11 +22,11 @@ main_layout = html.Div([
                  html.Div(className="two columns",
                           children = [
                               html.Center(html.H2("Δelta δata")),
-                              dcc.Link(html.Button("Prix d'énergies", style={'width':"100%"}), href='/energies'),
+                              dcc.Link(html.Button("Prix d'énergies", style={'width':"100%"}), href='/nrj'),
                               html.Br(),
-                              dcc.Link(html.Button('Fertilité vs revenus', style={'width':"100%"}), href='/population'),
+                              dcc.Link(html.Button('Fertilité vs revenus', style={'width':"100%"}), href='/wfr'),
                               html.Br(),
-                              dcc.Link(html.Button('Décès journaliers', style={'width':"100%"}), href='/deces'),
+                              dcc.Link(html.Button('Décès journaliers', style={'width':"100%"}), href='/fdc'),
                               html.Br(),
                               html.Br(),
                               html.Br(),
@@ -49,23 +51,16 @@ to_be_done_page = html.Div([
 
 app.layout = main_layout
 
-# "complete" layout (not sure that I need that)
-app.validation_layout = html.Div([
-    main_layout,
-    to_be_done_page,
-    pop.main_layout,
-])
-
 # Update the index
 @app.callback(dash.dependencies.Output('page_content', 'children'),
               [dash.dependencies.Input('url', 'pathname')])
 def display_page(pathname):
-    if pathname == '/energies':
-        return nrg.main_layout
-    elif pathname == '/population':
-        return pop.main_layout
-    elif pathname == '/deces':
-        return dec.main_layout
+    if pathname == '/nrj':
+        return nrj.main_layout
+    elif pathname == '/wfr':
+        return wfr.main_layout
+    elif pathname == '/fdc':
+        return fdc.main_layout
     else:
         return home_page
 

@@ -85,8 +85,8 @@ class Naissance():
             margin=dict(l=0, r=0, t=30, b=0),
         )
 
-        self.fig.add_trace(self.create_fig_naissances(), row=1, col=1)
-        self.fig.add_trace(self.create_fig_deces(), row=1, col=2)
+        self.fig.add_trace(self.create_fig_naissances(self.depn), row=1, col=1)
+        self.fig.add_trace(self.create_fig_deces(self.depd), row=1, col=2)
 
         self.fig.update_mapboxes(
             style='carto-positron',
@@ -318,6 +318,7 @@ class Naissance():
             dash.dependencies.Output('map', 'figure'),
             dash.dependencies.Input('map', 'relayoutData'),
             dash.dependencies.Input('map', 'selectedData'),
+            dash.dependencies.Input('year', 'value'),
         )(self.map_sync)
 
     def get_mapbox_layout_params(self, relayout_data):
@@ -334,7 +335,7 @@ class Naissance():
 
         return params
 
-    def map_sync(self, relayout_data, selected_data):
+    def map_sync(self, relayout_data, selected_data, year):
         """Update the layout and selection of other maps.
 
         :param relayout_data: layout of the updated map.
@@ -342,7 +343,35 @@ class Naissance():
         :return: New figure with all maps synced.
         """
         deps = self.get_department(selected_data)
+        depn = self.depn
+        depd = self.depd
+        if year == '2020':
+            depn = self.depn_20
+            depd = self.depd_20
+        #self.fig = self.create_fig_naissances(depn)
+        self.fig = {}
+        self.fig = sp.make_subplots(
+            rows=1,
+            cols=2,
+            subplot_titles=('Naissances', 'Décès'),
+            specs=[[{"type": "mapbox"}, {"type": "mapbox"}]],
+        )
 
+        # Enable multi-element selection
+        self.fig.update_layout(
+            clickmode='event+select',
+            hovermode='closest',
+            margin=dict(l=0, r=0, t=30, b=0),
+        )
+
+        self.fig.add_trace(self.create_fig_naissances(depn), row=1, col=1)
+        self.fig.add_trace(self.create_fig_deces(depd), row=1, col=2)
+
+        self.fig.update_mapboxes(
+            style='carto-positron',
+            center={"lat": 47.0353, "lon": 2.2928},
+            zoom=4.42,
+        )
 
         # upate selected elements to reflect on both maps
         self.fig.update_traces(
@@ -370,7 +399,7 @@ class Naissance():
         else:
             return ', '.join([self.dep_map[d] for d in deps])
 
-    def create_fig_naissances(self):
+    def create_fig_naissances(self, depn):
         """Setup `Naissances` figure.
 
         :return: new figure
@@ -386,19 +415,19 @@ class Naissance():
                 x=0.46,
             ),
             locations=self.depn.index,
-            customdata=np.stack((self.depn['NAME'], self.depn.index,
-                                 self.depn['SIZE']),
+            customdata=np.stack((depn['NAME'], depn.index,
+                                 depn['SIZE']),
                                 axis=1),
             hovertemplate=
             "<b>Departement : %{customdata[1]}</b><br><br>" +
             "Nom : %{customdata[0]}<br>" +
             "Naissance : %{customdata[2]}<br>",
-            z=np.log10(self.depn['SIZE']),
+            z=np.log10(depn['SIZE']),
             zmin=np.log10(self.zmin),
             zmax=np.log10(self.zmax),
         )
 
-    def create_fig_deces(self):
+    def create_fig_deces(self, depd):
         """Setup `Décès` figure.
 
         :return: new figure
@@ -414,14 +443,14 @@ class Naissance():
                 x=0.46,
             ),
             locations=self.depd.index,
-            customdata=np.stack((self.depd['NAME'], self.depd.index,
-                                 self.depd['SIZE']),
+            customdata=np.stack((depd['NAME'], depd.index,
+                                 depd['SIZE']),
                                 axis=1),
             hovertemplate=
             "<b>Departement : %{customdata[1]}</b><br><br>" +
             "Nom : %{customdata[0]}<br>" +
             "Décès : %{customdata[2]}<br>",
-            z=np.log10(self.depd['SIZE']),
+            z=np.log10(depd['SIZE']),
             zmin=np.log10(self.zmin),
             zmax=np.log10(self.zmax),
         )
@@ -559,8 +588,10 @@ class Naissance():
         what = []
         if year == '2020':
             aged = self.aged_20
+            age_deces_axis = self.age_deces_axis_20
         else:
             aged = self.aged
+            age_deces_axis = self.age_deces_axis
 
         if unit_mean == 'Unitaire':
             if 'Femme' in type:
@@ -586,8 +617,9 @@ class Naissance():
             if 'Moyenne' in type:
                 what += [(None, data, 'MGMEREPERED', 'Moyenne H/F')]
 
-        return self.cts(self.age_deces_axis, what,
+        return self.cts(age_deces_axis, what,
                         "Nombre de décès en fonction de l'age")
+
 
     def cts(self, x_axis, what, title):
         scatters = []

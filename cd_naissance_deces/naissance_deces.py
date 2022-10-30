@@ -40,6 +40,7 @@ class Naissance():
         self.aged = pd.read_pickle('cd_naissance_deces/data/1/jcwg_age_deces19.pkl')
 
         self.tudom_20 = pd.read_pickle('cd_naissance_deces/data/1/jcwg_tudom20.pkl')
+        self.tudom_20 = self.tudom_20.set_index(['DEPNAIS', 'TUDOM'])
         self.daten_20 = pd.read_pickle('cd_naissance_deces/data/1/jcwg_date_naissance20.pkl')
         self.dated_20 = pd.read_pickle('cd_naissance_deces/data/1/jcwg_date_deces20.pkl')
 
@@ -62,7 +63,7 @@ class Naissance():
             self.daten_20.reset_index()['date']))]
         #TODO change age_naissance_axis from min to max
         self.age_naissances_axis = list(range(17, 46))
-        self.tudom_axis = ['< 2 000', '2 000 à 4 999', '5 000 à 9 999', '10 000 à 19 999', '20 000 à 49 999', '50 000 à 99 999', '100 000 à 199 999', '200 000 à 1 999 999', '>2 000 000']
+        self.tudom_axis = ['< 2k', '2k-5k', '5k-10k', '10k-20k', '20k-50k', '50k-100k', '100k-200k', '200k-2Mi', '> 2Mi']
         self.age_deces_axis = list(sorted(set(self.aged.reset_index()['AGE'])))
         self.age_deces_axis_20 = list(sorted(set(self.aged_20.reset_index()['AGE'])))
         self.dep_map = {unplace_dep(pd.to_numeric(replace_dep(d['properties']['code']))): d['properties']['nom']
@@ -95,7 +96,7 @@ class Naissance():
 
         # main layout
         self.main_layout = html.Div(children=[
-            html.H3(children='Naissance et décès en France en 2019'),
+            html.H3(children='Naissance et décès en France en 2019-2020'),
             html.Div([
                 dcc.Markdown("""
                     Select here the year to preview :
@@ -289,18 +290,21 @@ class Naissance():
             dash.dependencies.Output('size_tudom', 'figure'),
             dash.dependencies.Input('map', 'selectedData'),
             dash.dependencies.Input('wps-uni-mg-11', 'value'),
+            dash.dependencies.Input('year', 'value'),
         )(self.size_tudom)
         self.app.callback(
             dash.dependencies.Output('size_naissance', 'figure'),
             dash.dependencies.Input('map', 'selectedData'),
             dash.dependencies.Input('wps-uni-mg-2', 'value'),
             dash.dependencies.Input('wps-hf-2', 'value'),
+            dash.dependencies.Input('year', 'value'),
         )(self.size_naissance)
         self.app.callback(
             dash.dependencies.Output('size_deces', 'figure'),
             dash.dependencies.Input('map', 'selectedData'),
             dash.dependencies.Input('wps-uni-mg-3', 'value'),
             dash.dependencies.Input('wps-hf-3', 'value'),
+            dash.dependencies.Input('year', 'value'),
         )(self.size_deces)
 
         # Update list of department names upon map selection.
@@ -475,7 +479,7 @@ class Naissance():
         return self.cts(date_axis, what,
                         "Nombre de naissance et décès par mois")
     
-    def size_tudom(self, selected_data, type):
+    def size_tudom(self, selected_data, type, year):
         """Graph about size of Naissance and Deces of every department.
 
         :param selected_data: selected department.
@@ -483,19 +487,24 @@ class Naissance():
         :return: figure of the graph.
         """
         deps = self.get_department(selected_data)
+        
+        if year == '2020':
+            tudom = self.tudom_20
+        else:
+            tudom = self.tudom
         what = []
         if type == 'Unitaire':
-            what += [(d, self.tudom, 'SIZE', 'Naissance ' +
+            what += [(d, tudom, 'SIZE', 'Naissance ' +
                         self.dep_map[d])
                         for d in deps]
         else:
-            data = self.tudom.loc[deps].reset_index().groupby(
+            data = tudom.loc[deps].reset_index().groupby(
                 ['TUDOM']).sum()
             what += [(None, data, 'SIZE', 'Naissance cumulée')]
         return self.cts(self.tudom_axis, what,
                         "Nombre de naissance en fonction de la taille de la ville")
 
-    def size_naissance(self, selected_data, unit_mean, type):
+    def size_naissance(self, selected_data, unit_mean, type, year):
         """Graph about parents age when they have a child of every department.
 
         :param selected_data: selected department.
@@ -504,29 +513,28 @@ class Naissance():
         :return: figure of the graph.
         """
         dep = self.get_department(selected_data)
+        if year == '2020':
+            agen = self.agen_20
+        else:
+            agen = self.agen
         what = []
-        df = self.agen
-        '''if year == '2019':
-            df = self.daten
-        else :
-            df = self.daten'''
 
         if unit_mean == 'Unitaire':
             if 'Femme' in type:
-                what += [(d, self.agen, 'SIZEMEREN', 'Femme ' +
+                what += [(d, agen, 'SIZEMEREN', 'Femme ' +
                           self.dep_map[d]) for d in dep]
             if 'Homme' in type:
-                what += [(d, self.agen, 'SIZEPEREN', 'Homme ' +
+                what += [(d, agen, 'SIZEPEREN', 'Homme ' +
                           self.dep_map[d]) for d in dep]
             if 'Somme' in type:
-                what += [(d, self.agen, 'SIZEMEREPEREN', 'Somme H/F ' +
+                what += [(d, agen, 'SIZEMEREPEREN', 'Somme H/F ' +
                           self.dep_map[d]) for d in dep]
             if 'Moyenne' in type:
-                what += [(d, self.agen, 'MGMEREPEREN', 'Moyenne H/F ' +
+                what += [(d, agen, 'MGMEREPEREN', 'Moyenne H/F ' +
                           self.dep_map[d]) for d in dep]
 
         else:
-            data = self.agen.loc[dep].reset_index().groupby(['level_1']).sum()
+            data = agen.loc[dep].reset_index().groupby(['level_1']).sum()
             if 'Femme' in type:
                 what += [(None, data, 'SIZEMEREN', 'Total femmes')]
             if 'Homme' in type:
@@ -539,7 +547,7 @@ class Naissance():
         return self.cts(self.age_naissances_axis, what,
                         "Nombre de naissance en fonction de l'age")
 
-    def size_deces(self, selected_data, unit_mean, type):
+    def size_deces(self, selected_data, unit_mean, type, year):
         """Graph about age of death of male and female of every department.
 
         :param selected_data: selected department.
@@ -549,22 +557,26 @@ class Naissance():
         """
         dep = self.get_department(selected_data)
         what = []
+        if year == '2020':
+            aged = self.aged_20
+        else:
+            aged = self.aged
 
         if unit_mean == 'Unitaire':
             if 'Femme' in type:
-                what += [(d, self.aged, 'SIZEMERED', 'Femme ' +
+                what += [(d, aged, 'SIZEMERED', 'Femme ' +
                           self.dep_map[d]) for d in dep]
             if 'Homme' in type:
-                what += [(d, self.aged, 'SIZEPERED', 'Homme ' +
+                what += [(d, aged, 'SIZEPERED', 'Homme ' +
                           self.dep_map[d]) for d in dep]
             if 'Somme' in type:
-                what += [(d, self.aged, 'SIZEMEREPERED', 'Somme H/F ' +
+                what += [(d, aged, 'SIZEMEREPERED', 'Somme H/F ' +
                           self.dep_map[d]) for d in dep]
             if 'Moyenne' in type:
-                what += [(d, self.aged, 'MGMEREPERED', 'Moyenne H/F ' +
+                what += [(d, aged, 'MGMEREPERED', 'Moyenne H/F ' +
                           self.dep_map[d]) for d in dep]
         else:
-            data = self.aged.loc[dep].reset_index().groupby(['AGE']).sum()
+            data = aged.loc[dep].reset_index().groupby(['AGE']).sum()
             if 'Femme' in type:
                 what += [(None, data, 'SIZEMERED', 'Total femmes')]
             if 'Homme' in type:

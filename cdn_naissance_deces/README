@@ -1,0 +1,16 @@
+Caroline Devaux SCIA 2023
+
+fichier :
+    - get_data.py : récupère et transforme pour utiliser les données du site de l'INSEE
+    - transform_data.py : fonctions utiles pour récupérer les données
+    - naissance_deces.py : affiche les figures sur le site
+
+Ajout par rapport au travail déjà effectué :
+    - ajout de bouton pour switch sur les données de 2020
+        - actualise toutes les figures avec les données de 2020
+    - ajout de la figure "Nombre de naissance en fonction de la taille de la ville"
+        - a titre d'information, la donnée TUDOM réfère au lieu de naissance de la mère et non de l'enfant
+        les chiffres ne sont donc pas complet
+    - ajout de la comparaison entre 2019 et 2020 sur le nombre de naissance et décès
+    - ajout d'observations sur les résultats de 2020
+    - modification de quelques fonctions pour récupérer les données

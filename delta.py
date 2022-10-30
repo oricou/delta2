@@ -6,7 +6,7 @@ from dash import html
 from nrj_energies import energies as nrj_lib
 from wfr_fertilite_revenus import main as wfr_lib
 from fdc_deces import deces as fdc_lib
-from cd_naissance_deces import naissance_deces as nd_lib
+from cdn_naissance_deces import naissance_deces as nd_lib
 
 # external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 

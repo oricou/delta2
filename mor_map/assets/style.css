@@ -1,0 +1,16 @@
+html { background-color: papayawhip; }
+body {
+    min-height: 100vh;
+    max-width: 1600px;
+    background-color: papayawhip;
+    margin: 0 auto;
+    margin-top: 10px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: #222222;
+}
+
+.checkbox {
+  column-count: 2;
+}

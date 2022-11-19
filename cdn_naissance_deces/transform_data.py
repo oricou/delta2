@@ -31,7 +31,7 @@ def do_tudom(dfn):
 
 def do_dep(dfn, dfd):
     # Get geojson department name.
-    with open('data/jcwg_departements.geojson') as f:
+    with open('cdn_naissance_deces/data/jcwg_departements.geojson') as f:
         dep = json.load(f)
 
     # Create a map between department code and department name.
@@ -61,21 +61,23 @@ def do_dep(dfn, dfd):
 
 def do_agen_aged(dfn,dfd):
     # Data about naissance/deces of men/women by their age
-    agemn = dfn.groupby(['DEPNAIS', 'AGEMERE']).size().rename('SIZEMEREN')
-    agepn = dfn.groupby(['DEPNAIS', 'AGEPERE']).size().rename('SIZEPEREN')
+    agemn = dfn.groupby(['DEPNAIS', 'AGEMERE']).size().rename('SIZEMEREN').to_frame()
+    agepn = dfn.groupby(['DEPNAIS', 'AGEPERE']).size().rename('SIZEPEREN').to_frame()
+    agemn = agemn.reset_index().rename(columns={'AGEMERE': 'AGE'}).set_index(['DEPNAIS', 'AGE'])
+    agepn = agepn.reset_index().rename(columns={'AGEPERE': 'AGE'}).set_index(['DEPNAIS', 'AGE'])
 
     agemd = dfd.loc[dfd.SEXE == 2, ['DEPDEC', 'AGE']].groupby(
         ['DEPDEC', 'AGE']).size().rename('SIZEMERED')
     agepd = dfd.loc[dfd.SEXE == 1, ['DEPDEC', 'AGE']].groupby(
         ['DEPDEC', 'AGE']).size().rename('SIZEPERED')
 
-    agen = pd.concat([agemn, agepn, ], axis=1)
+    agen = pd.concat([agemn, agepn], axis=1).fillna(0)
     agen['SIZEMEREPEREN'] = agen['SIZEMEREN'] + agen[
         'SIZEPEREN']
     agen['MGMEREPEREN'] = (agen['SIZEMEREN'] + agen[
         'SIZEPEREN']) // 2
 
-    aged = pd.concat([agemd, agepd, ], axis=1)
+    aged = pd.concat([agemd, agepd], axis=1).fillna(0)
     aged['SIZEMEREPERED'] = aged['SIZEMERED'] + aged[
         'SIZEPERED']
     aged['MGMEREPERED'] = (aged['SIZEMERED'] + aged[

@@ -8,6 +8,19 @@ import plotly.graph_objects as go
 import plotly.subplots as sp
 from cdn_naissance_deces.transform_data import *
 
+
+def pourcentage(prev, actual):
+    return ((actual - prev) / prev) * 100
+
+def define_pourcentage(age, age_20, dep, l):
+    age_20 = age_20.rename(columns={'SIZEMERE'+l:'SIZEMERE'+l+'20', 'SIZEPERE'+l:'SIZEPERE'+l+'20', 'SIZEMEREPERE'+l:'SIZEMEREPERE'+l+'20', 'MGMEREPERE'+l:'MGMEREPERE'+l+'20'})
+    age_ = pd.concat([age, age_20]).fillna(0).groupby([dep]).sum()
+    age_['P_SIZEMERE'+l] = round(pourcentage(age_['SIZEMERE'+l], age_['SIZEMERE'+l+'20']), 2)
+    age_['P_SIZEPERE'+l] = round(pourcentage(age_['SIZEPERE'+l], age_['SIZEPERE'+l+'20']), 2)
+    age_['P_SIZEMEREPERE'+l] = round(pourcentage(age_['SIZEMEREPERE'+l], age_['SIZEMEREPERE'+l+'20']), 2)
+    age_['P_MGMEREPERE'+l] = round(pourcentage(age_['MGMEREPERE'+l], age_['MGMEREPERE'+l+'20']), 2)
+    return age_
+
 class Naissance():
     '''
     SIZE: amount of death/birth per given reference
@@ -60,9 +73,14 @@ class Naissance():
 
         self.depn_ = pd.concat([self.depn, self.depn_20])
         self.depd_ = pd.concat([self.depd, self.depd_20])
+        self.depn_ = self.depn_.reset_index().groupby(['DEPNAIS', 'NAME']).sum().reset_index('NAME')
+        self.depd_ = self.depd_.reset_index().groupby(['DEPDEC', 'NAME']).sum().reset_index('NAME')
 
         self.agen_ = pd.concat([self.agen, self.agen_20])
         self.aged_ = pd.concat([self.aged, self.aged_20])
+
+        self.p_agen = define_pourcentage(self.agen, self.agen_20, "DEPNAIS", "N")
+        self.p_aged = define_pourcentage(self.aged, self.aged_20, "DEPDEC", "D")
 
         self.zmax = max(self.depn['SIZE'].max(), self.depd['SIZE'].max())
         self.zmin = min(self.depn['SIZE'].min(), self.depd['SIZE'].min())
@@ -73,15 +91,19 @@ class Naissance():
         #TODO change date_axis from 2019-01-15 to 2021-12-15
         self.date_axis = [pd.to_datetime(d) for d in sorted(set(
             self.daten.reset_index()['date']))]
+
         self.date_axis_20 = [pd.to_datetime(d) for d in sorted(set(
             self.daten_20.reset_index()['date']))]
+
         self.date_axis_ = [pd.to_datetime(d) for d in sorted(set(
             self.daten_.reset_index()['date']))]
+
         #TODO change age_naissance_axis from min to max
-        self.age_naissances_axis = list(range(15, 47))
+        self.age_naissances_axis = list(range(17, 47))
         self.tudom_axis = ['< 2k', '2k-5k', '5k-10k', '10k-20k', '20k-50k', '50k-100k', '100k-200k', '200k-2Mi', '> 2Mi']
         self.age_deces_axis = list(sorted(set(self.aged.reset_index()['AGE'])))
         self.age_deces_axis_20 = list(sorted(set(self.aged_20.reset_index()['AGE'])))
+
         self.age_deces_axis_ = list(sorted(set(self.aged_.reset_index()['AGE'])))
         self.dep_map = {unplace_dep(pd.to_numeric(replace_dep(d['properties']['code']))): d['properties']['nom']
                for d in self.dep['features']}
@@ -102,8 +124,8 @@ class Naissance():
             margin=dict(l=0, r=0, t=30, b=0),
         )
 
-        self.fig.add_trace(self.create_fig_naissances(self.depn), row=1, col=1)
-        self.fig.add_trace(self.create_fig_deces(self.depd), row=1, col=2)
+        self.fig.add_trace(self.create_fig_naissances(self.depn, '2019'), row=1, col=1)
+        self.fig.add_trace(self.create_fig_deces(self.depd, '2019'), row=1, col=2)
 
         self.fig.update_mapboxes(
             style='carto-positron',
@@ -308,7 +330,8 @@ class Naissance():
                * Les femmes vivent plus longtemps que les hommes.
 
             #### Observations des données de 2020 :     
-               * Avec le Covid le nombre de décès a considérablement augmenté.
+               * Avec le Covid le nombre de décès a considérablement augmenté, sur la carte cela se remarque avec une légère variation 
+               de couleur, la carte s'éclaircit très légèrement.
                * On remarque deux periodes d'augmentation massive des décès entre Janvier - Mai 2019 et Septembre 2019 - Janvier 2020.
                * Le premier confinement a eu lieu en Mars 2020 et aura permis de diminuer les décès pendant une periode jusqu'à 
                Septembre où la pandémie reprend.
@@ -365,13 +388,12 @@ class Naissance():
             dash.dependencies.Input('wps-hf-20', 'value'),
             dash.dependencies.Input('wps-uni-mg-20', 'value'),
         )(self.compare_nais)
-
+        
         # Update list of department names upon map selection.
         self.app.callback(
             dash.dependencies.Output('list_department', 'children'),
             dash.dependencies.Input('map', 'selectedData'),
         )(self.list_dep)
-
         # Sync mapboxes layout and selection.
         self.app.callback(
             dash.dependencies.Output('map', 'figure'),
@@ -379,6 +401,42 @@ class Naissance():
             dash.dependencies.Input('map', 'selectedData'),
             dash.dependencies.Input('year', 'value'),
         )(self.map_sync)
+        self.app.callback(
+            dash.dependencies.Output('wps-uni-mg-11', 'options'),
+            dash.dependencies.Input('map', 'selectedData'),
+        )(self.update_thing)
+        self.app.callback(
+            dash.dependencies.Output('wps-uni-mg-2', 'options'),
+            dash.dependencies.Input('map', 'selectedData'),
+        )(self.update_thing)
+        self.app.callback(
+            dash.dependencies.Output('wps-uni-mg-3', 'options'),
+            dash.dependencies.Input('map', 'selectedData'),
+        )(self.update_thing)
+        self.app.callback(
+            dash.dependencies.Output('wps-uni-mg-1', 'options'),
+            dash.dependencies.Input('map', 'selectedData'),
+        )(self.update_thing)
+        self.app.callback(
+            dash.dependencies.Output('wps-uni-mg-1', 'value'),
+            dash.dependencies.Input('wps-uni-mg-1', 'value'),
+            dash.dependencies.Input('map', 'selectedData'),
+        )(self.update_things2)
+        self.app.callback(
+            dash.dependencies.Output('wps-uni-mg-11', 'value'),
+            dash.dependencies.Input('wps-uni-mg-11', 'value'),
+            dash.dependencies.Input('map', 'selectedData'),
+        )(self.update_things2)
+        self.app.callback(
+            dash.dependencies.Output('wps-uni-mg-2', 'value'),
+            dash.dependencies.Input('wps-uni-mg-2', 'value'),
+            dash.dependencies.Input('map', 'selectedData'),
+        )(self.update_things2)
+        self.app.callback(
+            dash.dependencies.Output('wps-uni-mg-3', 'value'),
+            dash.dependencies.Input('wps-uni-mg-3', 'value'),
+            dash.dependencies.Input('map', 'selectedData'),
+        )(self.update_things2)
 
     def get_mapbox_layout_params(self, relayout_data):
         """Get the layout data from any mapbox in the figure.
@@ -410,7 +468,6 @@ class Naissance():
         if year == '2019-2020':
             depn = self.depn_
             depd = self.depd_
-        #self.fig = self.create_fig_naissances(depn)
         self.fig = {}
         self.fig = sp.make_subplots(
             rows=1,
@@ -426,8 +483,8 @@ class Naissance():
             margin=dict(l=0, r=0, t=30, b=0),
         )
 
-        self.fig.add_trace(self.create_fig_naissances(depn), row=1, col=1)
-        self.fig.add_trace(self.create_fig_deces(depd), row=1, col=2)
+        self.fig.add_trace(self.create_fig_naissances(depn, year), row=1, col=1)
+        self.fig.add_trace(self.create_fig_deces(depd, year), row=1, col=2)
 
         self.fig.update_mapboxes(
             style='carto-positron',
@@ -461,11 +518,18 @@ class Naissance():
         else:
             return ', '.join([self.dep_map[d] for d in deps])
 
-    def create_fig_naissances(self, depn):
+    def create_fig_naissances(self, depn, year):
         """Setup `Naissances` figure.
 
         :return: new figure
         """
+        customdata=np.stack((depn['NAME'], depn.index,
+                                 depn['SIZE'], self.p_agen[:96]['P_SIZEMEREPEREN']),
+                                axis=1)
+        if year == '2019-2020':
+            hovertemplate="<b>Departement : %{customdata[1]}</b><br><br>" + "Nom : %{customdata[0]}<br>" + "Naissance : %{customdata[2]}<br>"+ "Pourcentage : %{customdata[3]}%<br>"
+        else:
+            hovertemplate="<b>Departement : %{customdata[1]}</b><br><br>" + "Nom : %{customdata[0]}<br>" + "Naissance : %{customdata[2]}<br>"
         return go.Choroplethmapbox(
             geojson=self.dep,
             name='',
@@ -477,23 +541,25 @@ class Naissance():
                 x=0.46,
             ),
             locations=self.depn.index,
-            customdata=np.stack((depn['NAME'], depn.index,
-                                 depn['SIZE']),
-                                axis=1),
-            hovertemplate=
-            "<b>Departement : %{customdata[1]}</b><br><br>" +
-            "Nom : %{customdata[0]}<br>" +
-            "Naissance : %{customdata[2]}<br>",
+            customdata=customdata,
+            hovertemplate=hovertemplate,
             z=np.log10(depn['SIZE']),
             zmin=np.log10(self.zmin),
             zmax=np.log10(self.zmax),
         )
 
-    def create_fig_deces(self, depd):
+    def create_fig_deces(self, depd, year):
         """Setup `Décès` figure.
 
         :return: new figure
         """
+        customdata=np.stack((depd['NAME'], depd.index,
+                                 depd['SIZE'], self.p_aged[:96]['P_SIZEMEREPERED']),
+                                axis=1)
+        if year == '2019-2020':
+            hovertemplate="<b>Departement : %{customdata[1]}</b><br><br>" + "Nom : %{customdata[0]}<br>" + "Naissance : %{customdata[2]}<br>"+ "Pourcentage : %{customdata[3]}%<br>"
+        else:
+            hovertemplate="<b>Departement : %{customdata[1]}</b><br><br>" + "Nom : %{customdata[0]}<br>" + "Naissance : %{customdata[2]}<br>"
         return go.Choroplethmapbox(
             geojson=self.dep,
             name='',
@@ -505,13 +571,8 @@ class Naissance():
                 x=0.46,
             ),
             locations=self.depd.index,
-            customdata=np.stack((depd['NAME'], depd.index,
-                                 depd['SIZE']),
-                                axis=1),
-            hovertemplate=
-            "<b>Departement : %{customdata[1]}</b><br><br>" +
-            "Nom : %{customdata[0]}<br>" +
-            "Décès : %{customdata[2]}<br>",
+            customdata=customdata,
+            hovertemplate=hovertemplate,
             z=np.log10(depd['SIZE']),
             zmin=np.log10(self.zmin),
             zmax=np.log10(self.zmax),
@@ -565,11 +626,11 @@ class Naissance():
             if 'Naissance' in unit_mean:
                 data = dfn.loc[deps].reset_index().groupby(
                     ['date']).sum()
-                what += [(None, data, 'SIZE', 'Naissance cumulée')]
+                what += [(None, data, 'SIZE', 'Naissance par mois')]
             if 'Décès' in unit_mean:
                 data = dfd.loc[deps].reset_index().groupby(
                     ['date']).sum()
-                what += [(None, data, 'SIZE', 'Décès cumulé')]
+                what += [(None, data, 'SIZE', 'Décès par mois')]
 
         return self.cts(date_axis, what,
                         "Nombre de naissance et décès par mois")
@@ -597,7 +658,7 @@ class Naissance():
         else:
             data = tudom.loc[deps].reset_index().groupby(
                 ['TUDOM']).sum()
-            what += [(None, data, 'SIZE', 'Naissance cumulée')]
+            what += [(None, data, 'SIZE', 'Naissance par mois')]
         return self.cts(self.tudom_axis, what,
                         "Nombre de naissance en fonction de la taille de la ville")
 
@@ -633,7 +694,7 @@ class Naissance():
                           self.dep_map[d]) for d in dep]
 
         else:
-            data = agen.loc[dep].reset_index().groupby(['level_1']).sum()
+            data = agen.loc[dep].reset_index().groupby(['AGE']).sum()
             if 'Femme' in type:
                 what += [(None, data, 'SIZEMEREN', 'Total femmes')]
             if 'Homme' in type:
@@ -680,7 +741,7 @@ class Naissance():
                 what += [(d, aged, 'MGMEREPERED', 'Moyenne H/F ' +
                           self.dep_map[d]) for d in dep]
         else:
-            data = aged.loc[dep].reset_index().groupby(['AGE']).sum()
+            data = aged.loc[dep].reset_index().groupby(["AGE"]).sum()
             if 'Femme' in type:
                 what += [(None, data, 'SIZEMERED', 'Total femmes')]
             if 'Homme' in type:
@@ -728,19 +789,19 @@ class Naissance():
             if 'Naissance-2019' in unit_mean:
                 data = self.daten.loc[deps].reset_index().groupby(
                     ['date']).sum()
-                what += [(None, data, 'SIZE', 'Naissance cumulée en 2019')]
+                what += [(None, data, 'SIZE', 'Naissance en 2019')]
             if 'Décès-2019' in unit_mean:
                 data = self.dated.loc[deps].reset_index().groupby(
                     ['date']).sum()
-                what += [(None, data, 'SIZE', 'Décès cumulé en 2019')]
+                what += [(None, data, 'SIZE', 'Décès en 2019')]
             if 'Naissance-2020' in unit_mean:
                 data = self.daten_20.loc[deps].reset_index().groupby(
                     ['date']).sum()
-                what += [(None, data, 'SIZE', 'Naissance cumulée en 2020')]
+                what += [(None, data, 'SIZE', 'Naissance en 2020')]
             if 'Décès-2020' in unit_mean:
                 data = self.dated_20.loc[deps].reset_index().groupby(
                     ['date']).sum()
-                what += [(None, data, 'SIZE', 'Décès cumulé en 2020')]
+                what += [(None, data, 'SIZE', 'Décès en 2020')]
 
         return self.cts(['Jan', 'Fev', 'Mar', 'Avr', 'Mai', 'Jun', 'Jui', 'Aou', 'Sep', 'Oct', 'Nov', 'Dec'], what,
                         "Comparaison entre 2019 et 2020 des naissances et décès")
@@ -772,6 +833,21 @@ class Naissance():
             }
         }
 
+    def update_thing(self, selected_data):
+        deps = self.get_department(selected_data)
+        if len(deps) == 1:
+            return [{"label": "Unitaire", "value": "Unitaire"},
+            {"label": "Moyenne", "value": "Moyenne", "disabled": True},]
+        else:
+            return [{"label": "Unitaire", "value": "Unitaire"},
+            {"label": "Moyenne", "value": "Moyenne"},]
+
+    def update_things2(self, value, selected_data):
+        deps = self.get_department(selected_data)
+        if len(deps) == 1:
+            return 'Unitaire'
+        else:
+            return value
 
 if __name__ == '__main__':
     mpj = Naissance()

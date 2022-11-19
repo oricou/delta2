@@ -5,8 +5,10 @@ from zipfile import ZipFile
 
 import dateutil as du
 import pandas as pd
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
 
-from cdn_naissance_deces.transform_data import *
+from transform_data import *
 def get_data_from_url(url, as_str):
     """Unzip the data and return the dataframe.
 
@@ -54,8 +56,8 @@ def save_data_as_pkl(urlsn, urlsd, year):
     dep[2].fillna(0).to_pickle('cdn_naissance_deces/data/1/jcwg_department_naissance' + year + '.pkl')
     dep[3].fillna(0).to_pickle('cdn_naissance_deces/data/1/jcwg_department_deces' + year + '.pkl')
 
-    agen.fillna(0).to_pickle('cdn_naissance_deces/data/1/jcwg_age_naissance' + year + '.pkl')
-    aged.fillna(0).to_pickle('cdn_naissance_deces/data/1/jcwg_age_deces' + year + '.pkl')
+    agen.to_pickle('cdn_naissance_deces/data/1/jcwg_age_naissance' + year + '.pkl')
+    aged.to_pickle('cdn_naissance_deces/data/1/jcwg_age_deces' + year + '.pkl')
 
 
 def convert_date(y, m):

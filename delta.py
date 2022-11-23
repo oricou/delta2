@@ -6,6 +6,7 @@ from dash import html
 from nrj_energies import energies as nrj_lib
 from wfr_fertilite_revenus import main as wfr_lib
 from fdc_deces import deces as fdc_lib
+from cdn_naissance_deces import naissance_deces as nd_lib
 
 # external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
@@ -14,6 +15,7 @@ server = app.server
 wfr = wfr_lib.WorldPopulationStats(app)
 nrj = nrj_lib.Energies(app)
 fdc = fdc_lib.Deces(app)
+nd = nd_lib.Naissance(app)
 
 main_layout = html.Div([
     html.Div(className = "row",
@@ -27,6 +29,8 @@ main_layout = html.Div([
                               dcc.Link(html.Button('Fertilité vs revenus', style={'width':"100%"}), href='/wfr'),
                               html.Br(),
                               dcc.Link(html.Button('Décès journaliers', style={'width':"100%"}), href='/fdc'),
+                              html.Br(),
+                              dcc.Link(html.Button('Naissance et Décès 2019-2020', style={'width':"100%"}), href='/nd'),
                               html.Br(),
                               html.Br(),
                               html.Br(),
@@ -61,6 +65,8 @@ def display_page(pathname):
         return wfr.main_layout
     elif pathname == '/fdc':
         return fdc.main_layout
+    elif pathname == '/nd':
+        return nd.main_layout
     else:
         return home_page
 

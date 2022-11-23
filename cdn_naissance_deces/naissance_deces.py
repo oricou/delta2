@@ -100,6 +100,10 @@ class Naissance():
 
         #TODO change age_naissance_axis from min to max
         self.age_naissances_axis = list(range(17, 47))
+        self.age_naissances_axis = [str(i) + " ans" for i in self.age_naissances_axis]
+        self.age_naissances_axis[0] += " ou moins"
+        self.age_naissances_axis[len(self.age_naissances_axis) - 1] += " ou plus"
+        print(self.age_naissances_axis)
         self.tudom_axis = ['< 2k', '2k-5k', '5k-10k', '10k-20k', '20k-50k', '50k-100k', '100k-200k', '200k-2Mi', '> 2Mi']
         self.age_deces_axis = list(sorted(set(self.aged.reset_index()['AGE'])))
         self.age_deces_axis_20 = list(sorted(set(self.aged_20.reset_index()['AGE'])))
@@ -703,6 +707,8 @@ class Naissance():
                 what += [(None, data, 'SIZEMEREPEREN', 'Total H/F')]
             if 'Moyenne' in type:
                 what += [(None, data, 'MGMEREPEREN', 'Moyenne H/F')]
+            print("what", len(data))
+            print(len(self.age_naissances_axis))
 
         return self.cts(self.age_naissances_axis, what,
                         "Nombre de naissance en fonction de l'age")

@@ -5,7 +5,7 @@ description = ""
 authors = ["Olivier Ricou <ricou@lrde.epita.fr>"]
 
 [tool.poetry.dependencies]
-python = "~3.9.0"
+python = "^3.9.0"
 plotly = "^5.3"
 dash = "^2.0.0"
 numpy = "^1.20"

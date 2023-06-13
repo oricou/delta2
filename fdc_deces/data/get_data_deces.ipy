@@ -21,6 +21,8 @@ def parse_date_with_00(s):
 def death_dataframe(data):
     res = []
     for li in data.split('\n'):
+        if len(li) == 0:
+            continue
         try:
             nom_prenom = li[:80].split('/')[0]
             nom = nom_prenom.split('*')[0]
@@ -36,7 +38,7 @@ def death_dataframe(data):
             res.append([ nom,prenoms[0],sexe, naissance, code_postal_naissance, commune_naissance, pays_naissance,
                          deces, code_postal_deces, acte_deces ])
         except Exception as e:
-            print(e, '\n  ', li)
+            print("death_dataframe()", e, '\n  ', li)
     return pd.DataFrame(res, columns=['nom', 'prenom', 'sexe', 'naissance', 'cp_naissance', 'ville_naissance',
                                       'pays_naissance', 'deces', 'cp_deces', 'acte'])
 
@@ -59,27 +61,31 @@ def get_file(url, filename):
 url = "https://www.data.gouv.fr/api/1/datasets/fichier-des-personnes-decedees/"
 deces_ressource = requests.get(url).content    # json
 deces_ressource = json.loads(deces_ressource)  # dict
-#
+
 # get list of url to download
-#
+
 filenames = {d['title']:d['url'] for d in deces_ressource['resources']}
-#
+
 # get years data and save each decade of data
-#
+
 current_year = datetime.datetime.now().year
 for decade in range(1970, current_year, 10):
     backup = f"deces-{decade}-{min(current_year-1,decade+9)}.pkl"
+    print("Avons-nous le jeu complet : ", backup, "...", end=" ")
     if pathlib.Path(backup).is_file() or pathlib.Path(backup+'.bz2').is_file():
+        print("oui")
         continue
+    print("non. On télécharge")
     res = []
     for year in range(decade, min(decade+10, current_year)):
         filename = f"deces-{year}.txt"
         print(filename)
         res.append(get_file(filenames[filename], filename))
     df = pd.concat(res)
-    print(f"sauvegarde {backup}")
-    df.to_pickle(backup)
-    !bzip2 {backup}
+    if decade + 9 < current_year:
+        print(f"sauvegarde {backup}")
+        df.to_pickle(backup)
+        !bzip2 {backup}
 #
 # get months data of current year and update current decade of data
 #
@@ -107,6 +113,8 @@ if not(pathlib.Path(backup).is_file() or pathlib.Path(backup+'.bz2').is_file()):
 #
 # Extract from decade files a small dataframe with number of deads each day
 #
+backup = f"morts_par_jour-{(current_year // 10) * 10}*pkl"
+!rm -f {backup}
 for decade in range(1970, current_year+1, 10):
     backup = f"deces-{decade}-{min(current_year,decade+9)}.pkl"
     short = f"morts_par_jour-{decade}-{min(current_year,decade+9)}.pkl"
